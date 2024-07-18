@@ -52,7 +52,7 @@ The pilot project TwinFicient of the Green-AI Hub Mittelstand links the differen
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Useful tools</a></li>
+    <li><a href="#useful-tools">Useful tools</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -122,7 +122,7 @@ Don't forget to give the project a star! Thanks again!
 
 ## License
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+Distributed under the GNU General Public Licence V3. See `LICENSE.txt` for more information.
 
 Check third party licenses in the following java projects:
 
