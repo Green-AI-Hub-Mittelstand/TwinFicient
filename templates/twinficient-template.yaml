@@ -1,0 +1,896 @@
+apiVersion: influxdata.com/v2alpha1
+kind: Label
+metadata:
+    name: laughing-archimedes-f7e001
+spec:
+    color: '#00a3ff'
+    name: twinficient
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: great-shannon-f7e009
+spec:
+    associations:
+        - kind: Label
+          name: laughing-archimedes-f7e001
+    name: twinficient-score
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: shiny-perlman-f7e005
+spec:
+    associations:
+        - kind: Label
+          name: laughing-archimedes-f7e001
+    name: twinficient-aggregates
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: cranky-curran-37e001
+spec:
+    associations:
+        - kind: Label
+          name: laughing-archimedes-f7e001
+    every: 5m0s
+    name: Aggregate Heater Runtime
+    offset: 5s
+    query: |-
+        import "date"
+        import "array"
+        import "generate"
+        import "internal/debug"
+
+
+
+        srcBucket = "twinficient"
+
+        srcMeasurement = "celestra"
+
+        targetBucket = "twinficient-aggregates"
+
+        targetMeasurement = "aggregations"
+
+        targetField = "RtPerDay"
+
+        recordTime = (bucket, measurement, timeFilter, field) => {
+            entries =
+                from(bucket: bucket)
+                    |> range(start: 0)
+                    |> filter(fn: (r) => r._measurement == measurement)
+                    |> filter(fn: (r) => r._field == field)
+                    |> group(columns: [])
+                    |> timeFilter()
+                    |> findColumn(fn: (key) => true, column: "_time")
+
+            return if length(arr: entries) > 0 then entries[0] else debug.null(type: "time")
+        }
+
+        moveToStartOfDay = (v) => {
+            hours = date.hour(t: v)
+            minutes = date.minute(t: v)
+            seconds = date.second(t: v)
+            nanos = date.nanosecond(t: v)
+            durationString =
+                string(v: hours) + "h" + string(v: minutes) + "m" + string(v: seconds) + "s" + string(
+                        v: nanos,
+                    ) + "a"
+            toSubstract = duration(v: durationString)
+
+            return date.sub(from: v, d: toSubstract)
+        }
+
+        moveToEndOfDay = (v) => {
+            dStart = moveToStartOfDay(v: v)
+            nextDayStart = date.add(to: dStart, d: 24h)
+
+            return date.sub(from: nextDayStart, d: 1ns)
+        }
+
+        runtimePerHour = (t=<-) =>
+            t
+                |> filter(fn: (r) => r._measurement == srcMeasurement)
+                |> filter(fn: (r) => r._field == "HgRT" or r._field == "HgLastErr")
+                |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> filter(fn: (r) => r.HgLastErr != 9 and r.HgRT > 0)
+                |> map(fn: (r) => ({r with _value: float(v: r.HgRT) / 3600.0}))
+                |> set(key: "_field", value: targetField)
+                |> drop(columns: ["HgLastErr", "HgRT"])
+
+        moveOneDayRecords =
+            (start) =>
+                {
+                    stop = moveToEndOfDay(v: start)
+                    shortBefore = date.sub(from: start, d: 12h)
+
+                    // start at the last record of the previous day
+                    first =
+                        from(bucket: srcBucket)
+                            |> range(start: shortBefore, stop: date.sub(from: start, d: 1ns))
+                            |> runtimePerHour()
+                            |> last()
+                    second =
+                        from(bucket: srcBucket)
+                            |> range(start: start, stop: stop)
+                            |> runtimePerHour()
+
+                    result = union(tables: [first, second])
+
+                    // previous day is initialized with 0
+                    // if a heater is exchanged (=> negative differance as the new runtime is less) this entry is not considered
+                    result
+                        |> difference(nonNegative: true)
+                        |> cumulativeSum()
+                        // and choose the last with the sum of all for this day
+                        |> last()
+                        |> set(key: "_measurement", value: targetMeasurement)
+                        |> timeShift(duration: -12h)
+                        |> to(bucket: targetBucket)
+
+                    return true
+                }
+
+        moveOneDayRecordsIfNotInFuture = (start) => {
+            return if start > now() then false else moveOneDayRecords(start: start)
+        }
+
+        lastRecordTime = (measurement, bucket, field) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: last, field: field)
+
+        firstRecordTime = (measurement, bucket, field) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: first, field: field)
+
+        transferHeaterRuntime = (start) => {
+            dayStart = moveToStartOfDay(v: start)
+
+            moveOneDayRecordsIfNotInFuture(start: dayStart)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 1d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 2d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 3d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 4d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 5d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 6d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 7d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 8d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 9d))
+
+            return true
+        }
+
+        aggregateFromBeginning = () => {
+            // start from beginning of the source folder -> we always have hglasterr
+            lrtSrc = firstRecordTime(bucket: srcBucket, measurement: srcMeasurement, field: "HgLastErr")
+
+            return transferHeaterRuntime(start: lrtSrc)
+        }
+
+        aggregateNext = (start) => {
+            return transferHeaterRuntime(start: start)
+        }
+
+        lrtSrc = lastRecordTime(bucket: srcBucket, measurement: srcMeasurement, field: "HgLastErr")
+
+        lrtTarget = lastRecordTime(bucket: targetBucket, measurement: targetMeasurement, field: targetField)
+
+        success =
+            if exists lrtTarget then
+                aggregateNext(start: lrtTarget)
+            else
+                aggregateFromBeginning()
+
+        array.from(rows: [{success: success}]) |> yield()
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: serene-wiles-37e005
+spec:
+    associations:
+        - kind: Label
+          name: laughing-archimedes-f7e001
+    every: 5m0s
+    name: Aggregate Error Codes
+    query: |-
+        import "date"
+        import "array"
+        import "generate"
+        import "internal/debug"
+
+
+
+        srcBucket = "twinficient"
+
+        srcMeasurement = "celestra"
+
+        targetBucket = "twinficient-aggregates"
+
+        targetMeasurement = "aggregations"
+
+        targetField = "ErrorCodesPerDay"
+
+        errCodeLow = 0
+
+        errCodeUp = 9
+
+        recordTime = (bucket, measurement, timeFilter, field) => {
+            entries =
+                from(bucket: bucket)
+                    |> range(start: 0)
+                    |> filter(fn: (r) => r._measurement == measurement)
+                    |> filter(fn: (r) => r._field == field)
+                    |> group(columns: [])
+                    |> timeFilter()
+                    |> findColumn(fn: (key) => true, column: "_time")
+
+            return if length(arr: entries) > 0 then entries[0] else debug.null(type: "time")
+        }
+
+        moveToStartOfDay = (v) => {
+            hours = date.hour(t: v)
+            minutes = date.minute(t: v)
+            seconds = date.second(t: v)
+            nanos = date.nanosecond(t: v)
+            durationString =
+                string(v: hours) + "h" + string(v: minutes) + "m" + string(v: seconds) + "s" + string(
+                        v: nanos,
+                    ) + "a"
+            toSubstract = duration(v: durationString)
+
+            return date.sub(from: v, d: toSubstract)
+        }
+
+        moveToEndOfDay = (v) => {
+            dStart = moveToStartOfDay(v: v)
+            nextDayStart = date.add(to: dStart, d: 24h)
+
+            return date.sub(from: nextDayStart, d: 1ns)
+        }
+
+        errorCodesPerDay = (t=<-) =>
+            t
+                |> filter(fn: (r) => r._measurement == srcMeasurement)
+                |> filter(fn: (r) => r._field == "HgLastErr")
+                |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> duplicate(as: "_value", column: "HgLastErr")
+                |> difference(initialZero: true)
+                |> map(
+                    fn: (r) =>
+                        ({r with _value:
+                                if r.HgLastErr > errCodeLow and r.HgLastErr < errCodeUp then 1 else 0,
+                        }),
+                )
+                |> set(key: "_field", value: targetField)
+                |> drop(columns: ["HgLastErr", "_stop"])
+
+        moveOneDayRecords = (start) => {
+            stop = moveToEndOfDay(v: start)
+
+            from(bucket: srcBucket)
+                |> range(start: start, stop: stop)
+                |> errorCodesPerDay()
+                |> cumulativeSum()
+                // and choose the last with the sum of all for this day
+                |> last()
+                |> set(key: "_measurement", value: targetMeasurement)
+                |> timeShift(duration: -12h)
+                |> to(bucket: targetBucket)
+
+            return true
+        }
+
+        moveOneDayRecordsIfNotInFuture = (start) => {
+            return if start > now() then false else moveOneDayRecords(start: start)
+        }
+
+        lastRecordTime = (measurement, bucket, field) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: last, field: field)
+
+        firstRecordTime = (measurement, bucket, field) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: first, field: field)
+
+        transferErrorCodes = (start) => {
+            dayStart = moveToStartOfDay(v: start)
+
+            moveOneDayRecordsIfNotInFuture(start: dayStart)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 1d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 2d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 3d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 4d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 5d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 6d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 7d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 8d))
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 9d))
+
+            return true
+        }
+
+        aggregateFromBeginning = () => {
+            // start from beginning of the source folder -> we always have hglasterr
+            lrtSrc = firstRecordTime(bucket: srcBucket, measurement: srcMeasurement, field: "HgLastErr")
+
+            return transferErrorCodes(start: lrtSrc)
+        }
+
+        aggregateNext = (start) => {
+            return transferErrorCodes(start: start)
+        }
+
+        lrtSrc = lastRecordTime(bucket: srcBucket, measurement: srcMeasurement, field: "HgLastErr")
+
+        lrtTarget = lastRecordTime(bucket: targetBucket, measurement: targetMeasurement, field: targetField)
+
+        success =
+            if exists lrtTarget then
+                aggregateNext(start: lrtTarget)
+            else
+                aggregateFromBeginning()
+
+        array.from(rows: [{success: success}]) |> yield()
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: stupefied-ptolemy-77e001
+spec:
+    associations:
+        - kind: Label
+          name: laughing-archimedes-f7e001
+    every: 5m
+    name: Aggregate Score
+    offset: 10s
+    query: |-
+        import "http/requests"
+        import ejson "experimental/json"
+        import "internal/debug"
+        import "contrib/qxip/hash"
+        import "strings"
+        import "array"
+        import "experimental/dynamic"
+        import "experimental/record"
+        import "join"
+        import "date"
+
+
+
+        aasRegistryUrl = "http://aas-registry-v3:8080"
+
+        smRegistryUrl = "http://sm-registry-v3:8080"
+
+        environmentClusterUrl = "http://aas-environment:8081"
+
+        srcBucket = "twinficient"
+
+        srcMeasurement = "celestra"
+
+        targetBucket = "twinficient-score"
+
+        targetMeasurement = "aggregations"
+
+        targetField = "RtPerDay"
+
+        base64UrlEncode = (url) => {
+            e = hash.b64(v: url)
+
+            return strings.trimRight(v: e, cutset: "=")
+        }
+
+        option requests.defaultConfig = {timeout: 0s, insecureSkipVerify: false}
+
+        extractEndpointPrefix = (epArr) => {
+            return
+                if length(arr: epArr) >= 3 then
+                    epArr[0] + "//" + epArr[2]
+                else
+                    debug.null(type: "string")
+        }
+
+        createShellDescriptorUrl = (id) => {
+            return aasRegistryUrl + "/shell-descriptors/" + base64UrlEncode(url: id)
+        }
+
+        resolveServerPart = (url) => {
+            return
+                if exists url then
+                    extractEndpointPrefix(epArr: strings.split(v: url, t: "/"))
+                else
+                    debug.null(type: "string")
+        }
+
+        resolveMapping = (url) => {
+            return
+                if exists url then
+                    environmentClusterUrl
+                else
+                    debug.null(type: "string")
+        }
+
+        resolveFirstEndpoint = (sd) => {
+            href =
+                if exists sd["endpoints"] and length(arr: sd.endpoints) > 0
+                        and
+                        exists sd.endpoints[0]["protocolInformation"]
+                        and
+                        exists sd.endpoints[0].protocolInformation["href"]
+                then
+                    sd.endpoints[0].protocolInformation.href
+                else
+                    debug.null(type: "string")
+            serverPart = resolveServerPart(url: href)
+            mappedPrefix = resolveMapping(url: serverPart)
+
+            return
+                if exists mappedPrefix then
+                    strings.replaceAll(v: href, t: serverPart, u: mappedPrefix)
+                else if exists href then
+                    href
+                else
+                    debug.null(type: "string")
+        }
+
+        lookupFirstEndpointInShellDescriptor = (id) => {
+            href = createShellDescriptorUrl(id: id)
+            response =
+                requests.get(
+                    url: href,
+                    headers: ["Content-Type": "application/json", "accept": "application/json"],
+                )
+
+            return
+                if response.statusCode == 200 then
+                    resolveFirstEndpoint(sd: ejson.parse(data: response.body))
+                else
+                    debug.null(type: "string")
+        }
+
+        lookupTopologySubmodelIdFromShell = (shell) => {
+            return
+                if exists shell and exists shell["submodels"] and exists length(arr: shell.submodels) > 0
+                        and
+                        exists shell.submodels[0]["keys"] and exists length(arr: shell.submodels[0].keys)
+                            >
+                            0 and exists shell.submodels[0].keys[0]["value"]
+                then
+                    string(v: shell.submodels[0].keys[0].value)
+                else
+                    debug.null(type: "string")
+        }
+
+        lookupTopologySubmodelId = (url) => {
+            response =
+                requests.get(
+                    url: url,
+                    headers: ["Content-Type": "application/json", "accept": "application/json"],
+                )
+
+            return
+                if response.statusCode == 200 then
+                    lookupTopologySubmodelIdFromShell(shell: ejson.parse(data: response.body))
+                else
+                    debug.null(type: "string")
+        }
+
+        lookupToplogySubmodelUrlFromRegistry = (id) => {
+            href = smRegistryUrl + "/submodel-descriptors/" + base64UrlEncode(url: id)
+            response =
+                requests.get(
+                    url: href,
+                    headers: ["Content-Type": "application/json", "accept": "application/json"],
+                )
+
+            return
+                if response.statusCode == 200 then
+                    resolveFirstEndpoint(sd: ejson.parse(data: response.body))
+                else
+                    debug.null(type: "string")
+        }
+
+        lookupFactoryHallIdFromSm = (sm) => {
+            smElems = dynamic.asArray(v: sm.submodelElements)
+            filtered = smElems |> array.filter(fn: (x) => string(v: x.idShort) == "HeaterToFactory")
+            reference = dynamic.asArray(v: filtered[0].second.keys)[0].value
+
+            return if exists reference then string(v: reference) else debug.null(type: "string")
+        }
+
+        lookupFactoryHallNameFromSm = (sm) => {
+            smElems = dynamic.asArray(v: sm.submodelElements)
+            filtered = smElems |> array.filter(fn: (x) => string(v: x.idShort) == "Site")
+            siteElems =
+                dynamic.asArray(v: filtered[0].statements)
+                    |> array.filter(fn: (x) => string(v: x.idShort) == "SiteName")
+
+            return string(v: siteElems[0].value)
+        }
+
+        lookupFactoryHallHeaterCountFromSm = (sm) => {
+            smElems = dynamic.asArray(v: sm.submodelElements)
+            filtered = smElems |> array.filter(fn: (x) => string(v: x.idShort) == "Site")
+            siteElems =
+                dynamic.asArray(v: filtered[0].statements)
+                    |> array.filter(fn: (x) => string(v: x.idShort) == "HeaterCount")
+
+            return string(v: siteElems[0].value)
+        }
+
+        setUpRecord = (sm) => {
+            return {Building: lookupFactoryHallNameFromSm(sm: sm)}
+        }
+
+        lookupFactoryHallInfoFromTopologySubmodel = (url) => {
+            response =
+                requests.get(
+                    url: url,
+                    headers: ["Content-Type": "application/json", "accept": "application/json"],
+                )
+
+            return
+                if response.statusCode == 200 then
+                    setUpRecord(sm: dynamic.jsonParse(data: response.body))
+                else
+                    {Building: debug.null(type: "string")}
+        }
+
+        lookupFactoryHallIdFromTopologySubmodel = (url) => {
+            response =
+                requests.get(
+                    url: url,
+                    headers: ["Content-Type": "application/json", "accept": "application/json"],
+                )
+
+            return
+                if response.statusCode == 200 then
+                    lookupFactoryHallIdFromSm(sm: dynamic.jsonParse(data: response.body))
+                else
+                    debug.null(type: "string")
+        }
+
+        createHeaterShellId = (company, celNr, hzNr, hgNr) => {
+            return "http://aas.twinficient.de/heater/" + company + "/" + celNr + "/" + hzNr + "/" + hgNr
+        }
+
+        getVirtualBuildingInfo = (id) => {
+            factoryHallUrl =
+                if exists id then
+                    lookupFirstEndpointInShellDescriptor(id: id)
+                else
+                    debug.null(type: "string")
+            fhSubmodelId =
+                if exists factoryHallUrl then
+                    lookupTopologySubmodelId(url: factoryHallUrl)
+                else
+                    debug.null(type: "string")
+            fhTopologySubmodelUrl =
+                if exists fhSubmodelId then
+                    lookupToplogySubmodelUrlFromRegistry(id: fhSubmodelId)
+                else
+                    debug.null(type: "string")
+
+            return
+                if exists fhTopologySubmodelUrl then
+                    lookupFactoryHallInfoFromTopologySubmodel(url: fhTopologySubmodelUrl)
+                else
+                    {Building: debug.null(type: "string")}
+        }
+
+        getFactoryHallId = (company, celNr, hzNr, hgNr) => {
+            shellId = createHeaterShellId(company: company, celNr: celNr, hzNr: hzNr, hgNr: hgNr)
+            url = createShellDescriptorUrl(id: shellId)
+            ep =
+                if exists shellId then
+                    lookupFirstEndpointInShellDescriptor(id: shellId)
+                else
+                    debug.null(type: "string")
+            submodelId = if exists ep then lookupTopologySubmodelId(url: ep) else debug.null(type: "string")
+            topologySubmodelUrl =
+                if exists submodelId then
+                    lookupToplogySubmodelUrlFromRegistry(id: submodelId)
+                else
+                    debug.null(type: "string")
+
+            return
+                if exists topologySubmodelUrl then
+                    lookupFactoryHallIdFromTopologySubmodel(url: topologySubmodelUrl)
+                else
+                    debug.null(type: "string")
+        }
+
+        ifEmptyOneEmptyRecord = (t=<-, fn) => {
+            // we cant join on empty tables so we need at least an empty record
+            emptyValuesTable = array.from(rows: [fn()])
+            composed = union(tables: [t, emptyValuesTable])
+            column = composed |> findColumn(fn: (key) => true, column: "_value")
+
+            return
+                if length(arr: column) == 1 then
+                    composed
+                else
+                    t
+        }
+
+        emptyFactoryIdBuildingRecord = () =>
+            ({FactoryHallId: debug.null(type: "string"), Building: debug.null(type: "string")})
+
+        emptyIdentifiableRecordJoinedWithBuilding = () =>
+            ({
+                Company: debug.null(type: "string"),
+                CelNr: debug.null(type: "string"),
+                HgNr: debug.null(type: "string"),
+                HzNr: debug.null(type: "string"),
+                FactoryHallId: debug.null(type: "string"),
+                Building: debug.null(type: "string"),
+            })
+
+            emptyFactoryHallIdRecord = () =>
+            ({
+                Company: debug.null(type: "string"),
+                CelNr: debug.null(type: "string"),
+                HgNr: debug.null(type: "string"),
+                HzNr: debug.null(type: "string"),
+                FactoryHallId: debug.null(type: "string"),
+            })
+
+        getVirtualBuildingMapping = (start, stop) => {
+            withFactoryHallId =
+                from(bucket: srcBucket)
+                    |> range(start: start, stop: stop)
+                    |> filter(
+                        fn: (r) =>
+                            exists r.Company and exists r.CelNr and exists r.HzNr and exists r.HgNr
+                                and
+                                r._field == "HgLastErr" and r._measurement == srcMeasurement,
+                    )
+                    |> last()
+                    |> keep(columns: ["Company", "CelNr", "HgNr", "HzNr"])
+                    |> map(
+                        fn: (r) =>
+                            ({r with FactoryHallId:
+                                    getFactoryHallId(
+                                        company: r.Company,
+                                        celNr: r.CelNr,
+                                        hzNr: r.HzNr,
+                                        hgNr: r.HgNr,
+                                    ),
+                            }),
+                    )
+                    |> ifEmptyOneEmptyRecord(fn: emptyFactoryHallIdRecord)
+
+            withBuildingName =
+                withFactoryHallId
+                    |> keep(columns: ["FactoryHallId"])
+                    |> unique(column: "FactoryHallId")
+                    |> map(
+                        fn: (r) =>
+                            ({r with Building: getVirtualBuildingInfo(id: r.FactoryHallId).Building}),
+                    )
+                    |> ifEmptyOneEmptyRecord(fn: emptyFactoryIdBuildingRecord)
+
+            firstJoin =
+                join.inner(
+                    left: withFactoryHallId |> group(columns: []),
+                    right: withBuildingName |> group(columns: []),
+                    on: (l, r) => l.FactoryHallId == r.FactoryHallId,
+                    as: (l, r) => ({l with Building: r.Building}),
+                )
+                    |> ifEmptyOneEmptyRecord(fn: emptyIdentifiableRecordJoinedWithBuilding)
+
+            return firstJoin
+        }
+
+        withVirtualBuilding = (t=<-, mapping) => {
+            joined =
+                join.inner(
+                    left: t |> group(columns: []),
+                    right: mapping |> group(columns: []),
+                    on: (l, r) => l.Company == r.Company and l.CelNr == r.CelNr,
+                    as: (l, r) => ({l with Building: r.Building}),
+                )
+
+            return joined |> drop(columns: ["FactoryHallId"]) |> group(columns: [])
+        }
+
+        recordTime = (bucket, measurement, timeFilter) => {
+            entries =
+                from(bucket: bucket)
+                    |> range(start: 0)
+                    |> filter(fn: (r) => r._measurement == measurement)
+                    |> group(columns: ["_field"])
+                    |> timeFilter()
+                    |> findColumn(fn: (key) => true, column: "_time")
+
+            return if length(arr: entries) > 0 then entries[0] else debug.null(type: "time")
+        }
+
+        moveToStartOfDay = (v) => {
+            hours = date.hour(t: v)
+            minutes = date.minute(t: v)
+            seconds = date.second(t: v)
+            nanos = date.nanosecond(t: v)
+            durationString =
+                string(v: hours) + "h" + string(v: minutes) + "m" + string(v: seconds) + "s" + string(
+                        v: nanos,
+                    ) + "a"
+            toSubstract = duration(v: durationString)
+
+            return date.sub(from: v, d: toSubstract)
+        }
+
+        moveToEndOfDay = (v) => {
+            dStart = moveToStartOfDay(v: v)
+            nextDayStart = date.add(to: dStart, d: 24h)
+
+            return date.sub(from: nextDayStart, d: 1ns)
+        }
+
+        runtimePerHour = (t=<-) =>
+            t
+                |> filter(
+                    fn: (r) =>
+                        r._measurement == srcMeasurement and exists r.Company and exists r.CelNr
+                            and
+                            exists r.HgNr and exists r.HzNr,
+                )
+                |> filter(
+                    fn: (r) =>
+                        r._field == "HgRT" or r._field == "HgLastErr" or r._field == "HzIst" and r._value
+                                <
+                                1000.0 or r._field == "OutTemp" and r._value < 1000.0,
+                )
+                |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> filter(fn: (r) => r.HgLastErr != 9 and r.HgRT > 0)
+                |> map(fn: (r) => ({r with _value: float(v: r.HgRT) / 3600.0}))
+                |> set(key: "_field", value: targetField)
+                |> drop(columns: ["HgLastErr", "HgRT"])
+
+        computeSums = (column="_value", tables=<-) => {
+            fn = (r, accumulator) =>
+                ({
+                    total: accumulator.total + 1,
+                    DegreeDaysInInterval:
+                        if exists r.DegreeDay and r.DegreeDay > 0.0 then
+                            accumulator.DegreeDaysInInterval + r.DegreeDay
+                        else
+                            accumulator.DegreeDaysInInterval,
+                    RtInInterval:
+                        if exists r.RtPerDay and r.RtPerDay > 0.0 then
+                            accumulator.RtInInterval + r.RtPerDay
+                        else
+                            accumulator.RtInInterval,
+                })
+            identity = {total: 0, DegreeDaysInInterval: 0.0, RtInInterval: 0.0}
+
+            return tables |> reduce(fn: fn, identity: identity) |> drop(columns: ["total"])
+        }
+
+        moveOneDayRecords =
+            (start, mapping) =>
+                {
+                    stop = moveToEndOfDay(v: start)
+                    shortBefore = date.sub(from: start, d: 12h)
+
+                    // start at the last record of the previous day
+                    first =
+                        from(bucket: srcBucket)
+                            |> range(start: shortBefore, stop: date.sub(from: start, d: 1ns))
+                            |> runtimePerHour()
+                            |> last()
+                    second =
+                        from(bucket: srcBucket)
+                            |> range(start: start, stop: stop)
+                            |> runtimePerHour()
+
+                    result = union(tables: [first, second])
+
+                    // previous day is initialized with 0
+                    // if a heater is exchanged (=> negative differance as the new runtime is less) this entry is not considered
+                    runtimePerDay =
+                        result
+                            |> drop(columns: ["HzIst", "OutTemp"])
+                            |> difference(nonNegative: true)
+                            |> cumulativeSum()
+                            // and choose the last with the sum of all for this day
+                            |> last()
+                            |> set(key: "_measurement", value: targetMeasurement)
+                            |> timeShift(duration: -12h)
+                            |> map(fn: (r) => ({r with _time: date.add(d: 12h, to: start)}))
+                            |> drop(columns: ["_start", "_stop"])
+
+                    meanHzIst =
+                        first
+                            |> filter(fn: (r) => exists r["HzIst"])
+                            |> mean(column: "HzIst")
+                            |> map(
+                                fn: (r) =>
+                                    ({r with _time: date.add(d: 12h, to: start),
+                                        _field: "MeanHzIst",
+                                        _value: r.HzIst,
+                                        _measurement: targetMeasurement,
+                                    }),
+                            )
+                            |> drop(columns: ["_start", "_stop", "HzIst"])
+
+                    meanOutTemp =
+                        first
+                            |> filter(fn: (r) => exists r["OutTemp"])
+                            |> mean(column: "OutTemp")
+                            |> map(
+                                fn: (r) =>
+                                    ({r with _time: date.add(d: 12h, to: start),
+                                        _field: "MeanOutTemp",
+                                        _value: r.OutTemp,
+                                        _measurement: targetMeasurement,
+                                    }),
+                            )
+                            |> drop(columns: ["_start", "_stop", "OutTemp"])
+
+                    union(tables: [runtimePerDay, meanHzIst, meanOutTemp])
+                        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                        |> map(
+                            fn: (r) =>
+                                ({r with DegreeDay:
+                                        if r.MeanOutTemp <= 15 then r.MeanHzIst - r.MeanOutTemp else 0.0,
+                                }),
+                        )
+                        |> drop(columns: ["MeanHzIst", "MeanOutTemp"])
+                        |> withVirtualBuilding(mapping: mapping)
+                        |> group(columns: ["Building", "Company", "_time", "_measurement"])
+                        |> computeSums()
+                        |> group(columns: ["Building", "Company", "_measurement"])
+                        |> wideTo(bucket: targetBucket)
+
+                    return true
+                }
+
+        moveOneDayRecordsIfNotInFuture = (start, mapping) => {
+            return if start > now() then false else moveOneDayRecords(start: start, mapping: mapping)
+        }
+
+        lastRecordTime = (measurement, bucket) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: last)
+
+        firstRecordTime = (measurement, bucket) =>
+            recordTime(bucket: bucket, measurement: measurement, timeFilter: first)
+
+        transfer = (start) => {
+            dayStart = moveToStartOfDay(v: start)
+
+            t = getVirtualBuildingMapping(start: dayStart, stop: date.add(to: dayStart, d: 10d))
+
+            moveOneDayRecordsIfNotInFuture(start: dayStart, mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 1d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 2d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 3d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 4d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 5d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 6d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 7d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 8d), mapping: t)
+            moveOneDayRecordsIfNotInFuture(start: date.add(to: dayStart, d: 9d), mapping: t)
+            t |> yield(name: "aa")
+
+            return true
+        }
+
+        aggregateFromBeginning = () => {
+            lrtSrc = firstRecordTime(bucket: srcBucket, measurement: srcMeasurement)
+
+            return transfer(start: lrtSrc)
+        }
+
+        aggregateNext = (start) => {
+            return transfer(start: start)
+        }
+
+        lrtSrc = lastRecordTime(bucket: srcBucket, measurement: srcMeasurement)
+
+        lrtTarget = lastRecordTime(bucket: targetBucket, measurement: targetMeasurement)
+
+        success =
+            if exists lrtTarget then
+                aggregateNext(start: lrtTarget)
+            else
+                aggregateFromBeginning()
+
+        array.from(rows: [{success: success, lastSrc: lrtSrc, lastTarget: lrtTarget}]) |> yield()

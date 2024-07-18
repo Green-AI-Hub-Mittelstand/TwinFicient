@@ -1,0 +1,16 @@
+
+List of third-party dependencies grouped by their license type.
+
+    Apache 2:
+
+        * opencsv (com.opencsv:opencsv:5.9 - http://opencsv.sf.net)
+
+    Eclipse Public License 1.0:
+
+        * JUnit (junit:junit:4.13.2 - http://junit.org)
+
+    The MIT License (MIT):
+
+        * The Java InfluxDB 2.x Client (com.influxdb:influxdb-client-java:6.12.0 - https://github.com/influxdata/influxdb-client-java/tree/master/client)
+
+        * basyx-java-clients (org.eclipse.digitaltwin.basyx.v3.clients:basyx-java-clients:1.0.0 - https://github.com/dfkibasys/twinficient)

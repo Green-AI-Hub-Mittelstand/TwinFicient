@@ -1,0 +1,245 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 11,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": " time: DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{Building=\"([^\"]+)\", Company=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.Building}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.16",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"date\"\n\ncomputeScore = (column=\"_value\", tables=<-) => {\n    fn = (r, accumulator) => \n        ({\n            DegreeDaysInInterval: if exists r.DegreeDaysInInterval and r.DegreeDaysInInterval > 0.0 then accumulator.DegreeDaysInInterval + r.DegreeDaysInInterval else accumulator.DegreeDaysInInterval,\n            RtInInterval : if exists r.RtInInterval and r.RtInInterval > 0.0 then accumulator.RtInInterval + r.RtInInterval else accumulator.RtInInterval\n        })\n    identity = { DegreeDaysInInterval: 0.0, RtInInterval: 0.0}\n    return tables |> reduce(fn: fn, identity: identity) \n    |> group(columns: [\"Company\", \"Building\", \"_field\"])\n    |> filter(fn: (r) => r.DegreeDaysInInterval > 0.0)\n    |> map(fn: (r) => ({r with _value: r.RtInInterval / r.DegreeDaysInInterval, _field: \"score\"}))\n    |> drop(columns: [\"DegreeDaysInInterval\", \"RtInInterval\"])\n}\n\nfrom(bucket: \"twinficient-score\") \n |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n |> filter(fn: (r) => r.Company =~ /${company:regex}/ and r.Building =~ /${building:regex}/)\n |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n |> filter(fn: (r) => r.RtInInterval != 0 or r.DegreeDaysInInterval != 0)\n |> aggregateWindow(every: ${AggregationTime}, fn: computeScore)\n |> keep(columns: [\"_time\", \"_value\", \"Building\", \"Company\"])\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Efficiency Score",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "1mo",
+          "value": "1mo"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "AggregationTime",
+        "options": [
+          {
+            "selected": true,
+            "text": "1mo",
+            "value": "1mo"
+          },
+          {
+            "selected": false,
+            "text": "1w",
+            "value": "1w"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          }
+        ],
+        "query": "1mo,1w,1d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [],
+          "value": []
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "P5697886F9CA74929"
+        },
+        "definition": "from(bucket: \"twinficient-score\")\r\n    |> range(start: 0)\r\n    |> group(columns: [\"Company\"])\r\n    |> first()\r\n    |> map(fn: (r) => ({ r with _value: r.Company}))\r\n    |> keep(columns: [\"_value\"])",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Company",
+        "multi": true,
+        "name": "company",
+        "options": [],
+        "query": "from(bucket: \"twinficient-score\")\r\n    |> range(start: 0)\r\n    |> group(columns: [\"Company\"])\r\n    |> first()\r\n    |> map(fn: (r) => ({ r with _value: r.Company}))\r\n    |> keep(columns: [\"_value\"])",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [],
+          "value": []
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "P5697886F9CA74929"
+        },
+        "definition": "from(bucket: \"twinficient-score\")\r\n    |> range(start: 0)\r\n    |> filter(fn: (r) => r.Company =~ /^${company:regex}/ )\r\n    |> group(columns: [\"Company\", \"Building\"])\r\n    |> first()\r\n    |> map(fn: (r) => ({ r with _value: r.Building}))\r\n    |> keep(columns: [\"_value\"])\r\n    |> unique()\r\n",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Building",
+        "multi": true,
+        "name": "building",
+        "options": [],
+        "query": "from(bucket: \"twinficient-score\")\r\n    |> range(start: 0)\r\n    |> filter(fn: (r) => r.Company =~ /^${company:regex}/ )\r\n    |> group(columns: [\"Company\", \"Building\"])\r\n    |> first()\r\n    |> map(fn: (r) => ({ r with _value: r.Building}))\r\n    |> keep(columns: [\"_value\"])\r\n    |> unique()\r\n",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "2021-01-16T01:03:05.304Z",
+    "to": "2021-07-04T12:00:03.486Z"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Efficiency Score",
+  "uid": "TqD2peAIk",
+  "version": 17,
+  "weekStart": ""
+}

@@ -1,0 +1,21 @@
+
+List of third-party dependencies grouped by their license type.
+
+    Apache License, Version 2.0:
+
+        * Apache POI (org.apache.poi:poi-ooxml:4.1.2 - http://poi.apache.org/)
+        * Asset Administration Shell AASX-Serializer (org.eclipse.digitaltwin.aas4j:aas4j-dataformat-aasx:1.0.1 - https://github.com/eclipse-digitaltwin/aas4j/aas4j-dataformat-aasx)
+        * Asset Administration Shell Serializer Core (org.eclipse.digitaltwin.aas4j:aas4j-dataformat-core:1.0.1 - https://github.com/eclipse-digitaltwin/aas4j/aas4j-dataformat-core)
+        * Asset Administration Shell JSON-Serializer (org.eclipse.digitaltwin.aas4j:aas4j-dataformat-json:1.0.1 - https://github.com/eclipse-digitaltwin/aas4j/aas4j-dataformat-json)
+        * Asset Administration Shell XML-Serializer (org.eclipse.digitaltwin.aas4j:aas4j-dataformat-xml:1.0.1 - https://github.com/eclipse-digitaltwin/aas4j/aas4j-dataformat-xml)
+        * Asset Administration Shell Java Model (org.eclipse.digitaltwin.aas4j:aas4j-model:1.0.1 - https://github.com/eclipse-digitaltwin/aas4j/aas4j-model)
+		* Apache Log4j Core (org.apache.logging.log4j:log4j-core:2.22.1 - https://logging.apache.org/log4j/2.x/log4j/log4j-core/)
+
+    Eclipse Public License 1.0:
+
+        * JUnit (junit:junit:4.13.2 - http://junit.org)
+
+    MIT License:
+
+        * SLF4J API Module (org.slf4j:slf4j-api:2.0.9 - http://www.slf4j.org)
+        * SLF4J Simple Provider (org.slf4j:slf4j-simple:2.0.9 - http://www.slf4j.org)

@@ -1,0 +1,28 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB_v2_Flux
+    type: influxdb 
+    isDefault: true
+    url: http://influxdb:8086
+    jsonData:
+      version: Flux
+      organization: $INFLUXDB_ORG
+      defaultBucket: $INFLUXDB_BUCKET
+      tlsSkipVerify: true
+    secureJsonData:
+      token: $INFLUXDB_TOKEN
+  - name: Prometheus
+    type: prometheus
+    orgId: 1
+    url: http://prometheus:9090
+    uid: SNpaCLr4z
+
+  - name: Loki
+    type: loki
+    orgId: 1
+    url: http://loki:3100
+    uid: SSSyjYr4z
+
+
+

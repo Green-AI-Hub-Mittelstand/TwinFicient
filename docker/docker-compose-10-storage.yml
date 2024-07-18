@@ -1,0 +1,97 @@
+version: '3.6'
+
+networks:
+  storage:
+    name: twinficient-storage
+    internal: false
+
+volumes:
+  influxdb-storage:
+
+services:
+  influxdb:
+    image: influxdb:2.7.4
+    container_name: influxdb
+    networks:
+      - storage
+      - proxy
+      - aas-v3 # to access the v3 services from http in the dashoard
+    ports:
+      - 8086:8086
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: $INFLUXDB_INIT_USERNAME
+      DOCKER_INFLUXDB_INIT_PASSWORD: $INFLUXDB_INIT_PASSWORD
+      DOCKER_INFLUXDB_INIT_ORG: $INFLUXDB_INIT_ORG
+      DOCKER_INFLUXDB_INIT_BUCKET: $INFLUXDB_INIT_BUCKET
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: $INFLUXDB_INIT_ADMIN_TOKEN
+      VIRTUAL_HOST: influxdb.${EXTERNAL_HOSTNAME}
+      VIRTUAL_PORT: 8086   
+    restart: always
+    healthcheck:
+      test: "curl -f http://localhost:8086/ping"
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - influxdb-storage:/var/lib/influxdb2
+
+  data-integration:
+    # version needs to be incrementated, if you update the source code (alternatively delete the image before starting the stack)
+    image: twinficient/data-integration:0.0.6
+    build:
+      context: ./data/data-integration
+      dockerfile: Dockerfile
+    container_name: data-integration
+    restart: always
+    environment:
+      # digital twin urls
+      TF_DATAINTEGRATION_BASYX_AAS_REG_URL: http://aas-registry-v3:8080
+      TF_DATAINTEGRATION_BASYX_SM_REG_URL: http://sm-registry-v3:8080
+      TF_DATAINTEGRATION_BASYX_HOSTMAPPING_http://aas-environment.twinficient.localhost: http://aas-environment:8081
+      # buckets with aggregation data      
+      TF_DATAINTEGRATION_AGGREGATE_SCORE_BUCKET: twinficient-score
+      TF_DATAINTEGRATION_AGGREGATE_DEFAULT_BUCKET: twinficient-aggregates
+      # If there is to much pressure on the machine adjust this value
+      TF_DATAINTEGRATION_AGGREGATE_FETCH_DELAY: PT1S
+      # remote config from envs
+      TF_DATAINTEGRATION_LIVE_SOURCE_URL: $INFLUXDB_REMOTE_HOST
+      TF_DATAINTEGRATION_LIVE_SOURCE_TOKEN: $INFLUXDB_REMOTE_TOKEN
+      TF_DATAINTEGRATION_LIVE_SOURCE_BUCKET: $INFLUXDB_REMOTE_BUCKET
+      TF_DATAINTEGRATION_LIVE_SOURCE_ORG: $INFLUXDB_REMOTE_ORG
+      # process configuration: fetch frequency and delay are in java durations -> https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-
+      # how often data will be fetched (from live data host or for aggregation)
+      TF_DATAINTEGRATION_FETCH_FREQUENCY: PT5M  
+      TF_DATAINTEGRATION_STARTUP_DELAY: PT5S
+      
+      # will disable all influxdb tasks so that we do not run the influx db task in addition 
+      TF_DATAINTEGRATION_DISABLE_TASKS: true
+      # this is the mounted folder with templates 
+      TF_DATAINTEGRATION_TEMPLATE_FOLDER: /etc/config/data-integration/
+      # influxdb address in this network
+      TF_DATAINTEGRATION_URL: http://influxdb:8086
+      TF_DATAINTEGRATION_TOKEN: $INFLUXDB_INIT_ADMIN_TOKEN
+      TF_DATAINTEGRATION_BUCKET: $INFLUXDB_INIT_BUCKET
+      TF_DATAINTEGRATION_ORG: $INFLUXDB_INIT_ORG 
+      # java log level -> https://docs.oracle.com/javase/8/docs/api/java/util/logging/Level.html
+      TF_LOG_LEVEL: INFO
+      # TF_LOG_LEVEL: FINEST
+    volumes:
+      - ./config/data-integration/:/etc/config/data-integration/:ro
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      aas-registry-v3:
+        condition: service_healthy
+      sm-registry-v3:
+        condition: service_healthy    
+      aas-environment:
+        condition: service_healthy  
+      digital-twin-initializer: 
+        condition: service_started
+    networks:
+    - aas-v3
+    - proxy

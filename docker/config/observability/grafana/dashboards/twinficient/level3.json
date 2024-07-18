@@ -1,0 +1,975 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 9,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "level2"
+      ],
+      "targetBlank": false,
+      "title": "Level Up",
+      "tooltip": "",
+      "type": "dashboards",
+      "url": ""
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "level4"
+      ],
+      "targetBlank": false,
+      "title": "Level Down",
+      "tooltip": "",
+      "type": "dashboards",
+      "url": ""
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "h",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 10,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xField": "Time",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"timezone\"\n\noption location = timezone.location(name: \"Europe/Berlin\")\n\nfrom(bucket: \"twinficient-aggregates\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"aggregations\")\n  |> filter(fn: (r) => r.Company =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  |> filter(fn: (r) => r._field == \"RtPerDay\")\n  |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: sum, timeSrc: \"_start\")\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Heater Runtime",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "kWh",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"http/requests\"\nimport ejson \"experimental/json\"\nimport \"internal/debug\"\nimport \"contrib/qxip/hash\"\nimport \"strings\"\nimport \"array\"\nimport \"join\"\nimport \"experimental/record\"\n\naasRegistryUrl = \"http://aas-registry-v3:8080\"\nsmRegistryUrl = \"http://sm-registry-v3:8080\"\nendpointMapping = {\n    \"http://aas-environment.twinficient.localhost\" : \"http://aas-environment:8081\"\n}\n\noption requests.defaultConfig = {\n    timeout: 0s,\n    insecureSkipVerify: false,\n}\n\nbase64UrlEncode = (url) => {\n  e = hash.b64(v: url)\n  return strings.trimRight(v: e, cutset: \"=\")\n}\n\ncreateHeaterShellDescriptorUrl = (id) => {\n    return aasRegistryUrl + \"/shell-descriptors/\" + base64UrlEncode(url: id)\n}\n\ncreateHeaterShellDescriptorId = (company, celNr, hzNr, hgNr) => {\n    return \"http://aas.twinficient.de/heater/\" + company + \"/\" + celNr + \"/\" + hzNr + \"/\" + hgNr\n}\n\nextractEndpointPrefix = (epArr) => {\n    return if length(arr: epArr) >= 3\n    then epArr[0] + \"//\" + epArr[2]\n    else debug.null(type: \"string\")\n}\n\nresolveServerPart = (url) => {\n    return if exists url\n    then extractEndpointPrefix(epArr: strings.split(v: url, t: \"/\"))\n    else debug.null(type: \"string\")\n}\n\nresolveMapping = (url) => {\n    return if exists url\n    then record.get(r: endpointMapping, key: url, default: debug.null(type: \"string\"))  \n    else debug.null(type: \"string\")\n}\n\nresolveFirstEndpoint = (sd) => {\n    href = if exists sd[\"endpoints\"] and length(arr: sd.endpoints) > 0 and exists sd.endpoints[0][\"protocolInformation\"] and exists sd.endpoints[0].protocolInformation[\"href\"] then sd.endpoints[0].protocolInformation.href else debug.null(type: \"string\")\n    serverPart = resolveServerPart(url: href)\n    mappedPrefix = resolveMapping(url: serverPart)\n\n    return if exists mappedPrefix\n    then strings.replaceAll(v: href, t: serverPart, u: mappedPrefix)\n    else if exists href then href\n    else debug.null(type: \"string\")\n}\n\nlookupFirstEndpointInShellDescriptor = (id) => {\n    href = createHeaterShellDescriptorUrl(id: id)\n    response = requests.get(url: href,  headers: [\"Content-Type\": \"application/json\", \"accept\": \"application/json\"])\n    return if response.statusCode == 200\n    then resolveFirstEndpoint(sd: ejson.parse(data: response.body))\n    else debug.null(type: \"string\")\n}\n\n\nfindTechnicalSubmodlUrlInHeaterDefinitionShell = (shell) => {\n// we just have one -> so no need for filtering right now\n    return if exists shell and exists shell[\"submodels\"] and length(arr: shell.submodels) > 0 and exists shell.submodels[0][\"keys\"] and length(arr: shell.submodels[0].keys) > 0 and exists shell.submodels[0].keys[0]\n    then string(v: shell.submodels[0].keys[0].value)\n    else debug.null(type: \"string\")\n}\n\nlookupTechnicalSubmodelUrlFromSmRegistry = (id) => {\n    href = smRegistryUrl + \"/submodel-descriptors/\" + base64UrlEncode(url: id)\n    response = requests.get(url: href,  headers: [\"Content-Type\": \"application/json\", \"accept\": \"application/json\"])\n    return if response.statusCode == 200 \n    then resolveFirstEndpoint(sd: ejson.parse(data:response.body))//\"--\" + getPerfomanceFromDynamic(v: dynamic.jsonParse(data: response.body))\n    else debug.null(type: \"string\")\n}\n\nlookupTechnicalSubmodelIdFromShell = (shellUrl) => {\n    response = requests.get(url: shellUrl,  headers: [\"Content-Type\": \"application/json\", \"accept\": \"application/json\"])\n    return if response.statusCode == 200\n    then findTechnicalSubmodlUrlInHeaterDefinitionShell(shell: ejson.parse(data: response.body)) //findDerivedFrom(shell: ejson.parse(data: response.body))\n    else debug.null(type: \"string\")\n}\n\nfindDevicePerformanceInSubmodel = (sm) => {\n    return if exists sm and exists sm[\"submodelElements\"] and length(arr: sm.submodelElements) > 0 \n              and exists sm.submodelElements[0][\"value\"] and length(arr: sm.submodelElements[0].value) > 0\n              and exists sm.submodelElements[0].value[0][\"value\"] and length(arr: sm.submodelElements[0].value[0].value) > 0\n              and exists sm.submodelElements[0].value[0].value[0][\"value\"] and length(arr: sm.submodelElements[0].value[0].value) > 0\n              and exists sm.submodelElements[0].value[0].value[0].value[0][\"value\"]\n    then string(v: sm.submodelElements[0].value[0].value[0].value[0].value)\n    else debug.null(type: \"string\")\n}\n\ngetDevicePerformanceBySubmodelUrl = (smUrl) => {\n    response = requests.get(url: smUrl,  headers: [\"Content-Type\": \"application/json\", \"accept\": \"application/json\"])\n    return if response.statusCode == 200\n    then findDevicePerformanceInSubmodel(sm: ejson.parse(data: response.body))\n    else debug.null(type: \"string\")\n}\n\ngetDevicePerfomanceByDerivedFrom = (df) => {\n    url = lookupFirstEndpointInShellDescriptor(id: df)\n    submodelId = if exists url \n    then lookupTechnicalSubmodelIdFromShell(shellUrl: url)\n    else debug.null(type: \"string\")\n\n    submodelUrl = if exists submodelId\n    then lookupTechnicalSubmodelUrlFromSmRegistry(id: submodelId)\n    else debug.null(type: \"string\")\n\n    return if exists submodelUrl\n    then getDevicePerformanceBySubmodelUrl(smUrl: submodelUrl)\n    else debug.null(type: \"string\")\n}\n\nwithDevicePerformance = (t=<-) => {\n\n    performance = t\n         |> keep(columns: [\"derivedFrom\"])\n         |> unique(column: \"derivedFrom\")\n         |> map(fn: (r) => ({r with performance: if exists r.derivedFrom then getDevicePerfomanceByDerivedFrom(df: r.derivedFrom) else \"-1.0\"}))\n\n    result = join.left(\n        left: t |> group(columns: []),\n        right: performance,\n        on: (l, r) => l.derivedFrom == r.derivedFrom,\n        as: (l, r) => ({ l with performance: r.performance}),\n     ) \n\n    return result\n}\n\nfindDerivedFrom = (shell) => {\n     return if exists shell and exists shell[\"derivedFrom\"] and exists shell.derivedFrom[\"keys\"] and length(arr: shell.derivedFrom.keys) > 0 and exists  shell.derivedFrom.keys[0][\"value\"]\n     then string(v: shell.derivedFrom.keys[0].value)\n     else debug.null(type: \"string\")\n}\n\nlookupShellsDerivedFrom = (url) => {\n    response = requests.get(url: url,  headers: [\"Content-Type\": \"application/json\", \"accept\": \"application/json\"])\n    return if response.statusCode == 200\n    then findDerivedFrom(shell: ejson.parse(data: response.body))\n    else debug.null(type: \"string\")\n}\n\ngetDerivedFrom = (company, celNr, hzNr, hgNr) => {\n    shellId = createHeaterShellDescriptorId(company: company, celNr: celNr, hzNr: hzNr, hgNr: hgNr)\n    endpoint = lookupFirstEndpointInShellDescriptor(id: shellId)\n    return if exists endpoint \n    then  lookupShellsDerivedFrom(url: endpoint)\n    else debug.null(type: \"string\")\n}\n\nwithDerivedFrom = (t=<-) => t |> map(fn: (r) => ({r with derivedFrom: getDerivedFrom(company: r.Company, celNr: r.CelNr, hzNr: r.HzNr, hgNr: r.HgNr)})) \n\naddPerformance = (t=<-) => {\n    toCalculateOn = \n        t |> filter(fn: (r) => exists r.Company and exists r.CelNr and exists r.HzNr and exists r.HgNr)    \n          |> last()\n          |> withDerivedFrom()\n          |> withDevicePerformance()\n\n    result = join.left(\n        left: t |> group(columns: []),\n        right: toCalculateOn,\n        on: (l, r) => l.Company == r.Company and l.CelNr == r.CelNr and l.HzNr == r.HzNr and l.HgNr == r.HgNr,\n        as: (l, r) => ({ l with performance: float(v: r.performance)}),\n     ) \n\n    return  result |> group(columns: [\"_measurement\", \"_field\", \"Company\", \"CelNr\", \"HzNr\", \"HgNr\"]) |> sort(columns: [\"_time\"])\n}\n\n\nfrom(bucket: \"twinficient-aggregates\") \n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"aggregations\"  )\n    |> filter(fn: (r) => r._field == \"RtPerDay\" )\n    |> filter(fn: (r) => exists r.HzNr and exists r.HgNr and exists r.CelNr and exists r.Company)\n    |> filter(fn: (r) => r.Company =~ /^${Company:regex}$/) \n    |> filter(fn: (r) => r.CelNr =~ /^${CelNr:regex}$/) \n    |> filter(fn: (r) => r.HzNr =~ /^${HzNr:regex}$/) \n    |> addPerformance()   \n     \n    |> map(fn: (r) => ({ r with runtime : r._value})) \n    |> map(fn: (r) => ({ r with _value : if exists r.performance then r._value * float(v: r.performance) else 0.0 - 100.0 * r.performance }))\n\n    |> set(key: \"_field\", value: \"consumption\")\n    |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n    |> aggregateWindow(every: ${AggregationTime}, fn: sum, timeSrc: \"_start\")\n    |> drop(columns: [\"_start\", \"_stop\"]) \n    |> yield()\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Consumption Rate",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Number of Errors",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"timezone\"\n\noption location = timezone.location(name: \"Europe/Berlin\")\n\nfrom(bucket: \"twinficient-aggregates\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"aggregations\")\n  |> filter(fn: (r) => r.Company =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  |> filter(fn: (r) => r._field == \"ErrorCodesPerDay\")\n  |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: sum, timeSrc: \"_start\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Codes",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "h",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "hours_elapsed {CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\", _start=\"([^\"]+)\", _stop=\"([^\"]+)\"}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 12,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"sampledata\"\n \nfrom(bucket: \"twinficient\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"celestra\")\n  |> filter(fn: (r) => r[\"Company\"] =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"HgStat\")\n  |> elapsed(unit: 1m)\n  |> group(columns:[\"Company\", \"CelNr\", \"HzNr\"])\n  |> filter(fn:(r) => r._value == 10)\n  |> map(fn: (r) => ({r with hours_elapsed:  float(v: r.elapsed)/60.0}))\n  |> aggregateWindow(every: ${AggregationTime}, fn: sum, timeSrc: \"_start\", column: \"hours_elapsed\")\n  |> group(columns:[\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: mean, timeSrc: \"_start\", column: \"hours_elapsed\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Open Door Time",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "°C",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD/MM/YY"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "from(bucket: \"twinficient\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"celestra\")\n  |> filter(fn: (r) => r[\"Company\"] =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"HzIst\")\n  |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: mean, timeSrc: \"_start\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Real Temperature",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Number of Alerts",
+            "axisPlacement": "auto",
+            "axisSoftMax": 1,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD/MM/YY"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\alertOn {CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 14,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "import \"math\"\n\nthreshold = 0.3\nnotIgnoreGLT = 1.0\ndefaultSoll = 18.0\n\nfrom(bucket: \"twinficient\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"celestra\")\n  |> filter(fn: (r) => r[\"Company\"] =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  //|> filter(fn: (r) => r[\"HgNr\"] =~ /^${HgNr:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"HzIst\" or r[\"_field\"] == \"OutTemp\"  or r[\"_field\"] == \"HzSoll_GLT\" or r[\"_field\"] == \"HzSoll_ACT\" or r[\"_field\"] == \"HgRT\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with soll: if exists r.HzSoll_GLT then r.HzSoll_GLT else if exists r.HzSoll_ACT then r.HzSoll_ACT else defaultSoll }))\n  |> elapsed(unit: 1s, columnName: \"elapsed\")\n  |> difference(columns: [\"HgRT\"], nonNegative: true, keepFirst: false)\n  |> duplicate(column: \"HzIst\", as: \"DifHzIst\")\n  |> difference(columns: [\"DifHzIst\"], nonNegative: false, keepFirst: false)\n  |> map(fn: (r) => ({ r with score: -float(v: r.DifHzIst) * float(v: r.HgRT) / float(v: r.elapsed) } ) )\n  |> map(fn: (r) => ({ r with dT: r.HzIst - r.OutTemp }))\n  |> filter(fn: (r) => (r.score > threshold or (r.dT <= 0 and r.HgRT > 0) and r.OutTemp < r.soll ))\n  |> map(fn: (r) => ({r with alertOn: 1 }))\n  |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: sum, column: \"alertOn\", timeSrc: \"_start\")\n  |> keep(columns:[\"_time\", \"alertOn\", \"Company\", \"CelNr\", \"HzNr\"])\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Temperature Drops",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P5697886F9CA74929"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "°C",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\{CelNr=\"([^\"]+)\", Company=\"([^\"]+)\", HzNr=\"([^\"]+)\"\\}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.Company} / ${__field.labels.CelNr} / ${__field.labels.HzNr}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time: DD/MM/YY"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P5697886F9CA74929"
+          },
+          "query": "from(bucket: \"twinficient\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"celestra\")\n  |> filter(fn: (r) => r[\"Company\"] =~ /^${Company:regex}$/)\n  |> filter(fn: (r) => r[\"CelNr\"] =~ /^${CelNr:regex}$/)\n  |> filter(fn: (r) => r[\"HzNr\"] =~ /^${HzNr:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"HzSoll_ACT\")\n  |> group(columns: [\"Company\", \"CelNr\", \"HzNr\"])\n  |> aggregateWindow(every: ${AggregationTime}, fn: mean, timeSrc: \"_start\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Desired Temperature",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [
+    "level3"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "1d",
+          "value": "1d"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "AggregationTime",
+        "options": [
+          {
+            "selected": false,
+            "text": "1mo",
+            "value": "1mo"
+          },
+          {
+            "selected": false,
+            "text": "1w",
+            "value": "1w"
+          },
+          {
+            "selected": true,
+            "text": "1d",
+            "value": "1d"
+          }
+        ],
+        "query": "1mo,1w,1d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [],
+          "value": []
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "P5697886F9CA74929"
+        },
+        "definition": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"Company\",\n    predicate: (r) => r._measurement == \"celestra\",\n    start: 0\n)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "Company",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"Company\",\n    predicate: (r) => r._measurement == \"celestra\",\n    start: 0\n)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": [],
+          "value": []
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "P5697886F9CA74929"
+        },
+        "definition": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"CelNr\",\n    predicate: (r) => r._measurement == \"celestra\" and r.Company =~ /^${Company:regex}$/,\n    start: 0\n)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "CelNr",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"CelNr\",\n    predicate: (r) => r._measurement == \"celestra\" and r.Company =~ /^${Company:regex}$/,\n    start: 0\n)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [],
+          "value": []
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "P5697886F9CA74929"
+        },
+        "definition": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"HzNr\",\n    predicate: (r) => r._measurement == \"celestra\" and r.CelNr =~ /^${CelNr:regex}$/ and r.Company =~ /^${Company:regex}$/,\n    start: 0\n)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "HzNr",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\"\n \nschema.tagValues(\n    bucket: \"twinficient\",\n    tag: \"HzNr\",\n    predicate: (r) => r._measurement == \"celestra\" and r.CelNr =~ /^${CelNr:regex}$/ and r.Company =~ /^${Company:regex}$/,\n    start: 0\n)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "2021-06-01T00:00:00.000Z",
+    "to": "2021-12-31T22:59:59.000Z"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "3 - Heating Zone Level",
+  "uid": "4CG7LbpSa",
+  "version": 17,
+  "weekStart": ""
+}

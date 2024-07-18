@@ -1,0 +1,12 @@
+/gradle/**
+/api/
+/.github/
+/.travis.yml
+/build.gradle
+/build.sbt
+/git_push.sh
+/gradle.properties
+/gradlew
+/gradlew.bat
+/settings.gradle
+/src/main/AndroidManifest.xml

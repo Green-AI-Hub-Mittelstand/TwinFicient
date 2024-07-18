@@ -1,0 +1,18 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>de.dfki.twinficient</groupId>
+	<artifactId>aggregator</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>Digital Twin Service Aggregator</name>
+	<description>Combines all digital twin services</description>
+	<packaging>pom</packaging>
+
+	<modules>
+		<module>basyx-java-clients</module>
+		<module>digital-twin-initializer</module>
+		<module>data-integration</module>
+	</modules>
+
+</project>

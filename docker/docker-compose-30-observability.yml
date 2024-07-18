@@ -1,0 +1,125 @@
+version: '3.6'
+
+
+networks:
+  observation:
+    name: twinficient-observation
+    internal: true
+
+volumes:
+  prometheus_data:
+
+services:
+  grafana:
+    image: grafana/grafana:9.3.16
+    container_name: grafana
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_DEFAULT_APP_MODE: development
+      GF_SERVER_DOMAIN: grafana.${EXTERNAL_HOSTNAME}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/overview.json"
+      INFLUXDB_ORG: $INFLUXDB_INIT_ORG
+      INFLUXDB_BUCKET: $INFLUXDB_INIT_BUCKET
+      INFLUXDB_TOKEN: $INFLUXDB_INIT_ADMIN_TOKEN
+      VIRTUAL_HOST: grafana.${EXTERNAL_HOSTNAME}
+      VIRTUAL_PORT: 3000
+    volumes:
+      - ./config/observability/grafana/dist/:/var/lib/grafana/plugins/
+      - ./config/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/observability/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - observation
+      - storage
+      - proxy
+      - aas-v3 # to access the v3 services from http in the dashoard
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - observation
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    restart: unless-stopped
+    expose:
+      - 8080
+    networks:
+      - observation
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    environment:
+      VIRTUAL_HOST: prometheus.${EXTERNAL_HOSTNAME}
+      VIRTUAL_PORT: 9090
+    restart: unless-stopped
+    volumes:
+      - ./config/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - observation
+      - proxy
+
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./config/observability/loki.yml:/etc/loki/local-config.yaml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "128m"
+    networks:
+      - observation
+      - proxy
+
+  promtail:
+    image: grafana/promtail:2.8.0
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/observability/promtail.yml:/etc/promtail/promtail_config.yml
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail_config.yml
+    networks:
+      - observation

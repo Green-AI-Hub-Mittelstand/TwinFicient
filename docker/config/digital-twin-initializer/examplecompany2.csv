@@ -1,0 +1,6 @@
+Company,CelNr,HzNr,HgNr,Building,Virtual_Building,Device_Performance,Device_Type
+Example2,C1,1,1,Halle_XXX,Halle_XXX,33,Maxima_55i_Erdgas
+Example2,C1,1,2,Halle_XXX,Halle_XXX,40,Optima_Plus_40
+Example2,C1,2,3,Halle_XXX,Halle_XXX,33,Maxima_55i_Erdgas
+Example2,C1,2,4,Halle_XXX,Halle_XXX,33,Maxima_55i_Erdgas
+Example2,C2,1,1,Halle_XXX,Halle_XXX,40,Optima_Plus_40

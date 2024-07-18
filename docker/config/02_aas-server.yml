@@ -1,0 +1,34 @@
+spring:
+  web:
+    resources:
+      static-locations:
+        - classpath:/static
+logging:
+  level:
+    org.springframework.boot.autoconfigure: INFO
+server:
+  port: 8088
+basys:
+  aas-registry:
+    type: dotaas
+    service:
+      connectionString: http://aas-registry-dotaas:8080
+  aas-server:
+    backend: InMemory
+    source: /workspace/data
+    file-suffixes: .aasx
+    recursive: true
+    watch: true
+    unzip-folder: /workspace/BOOT-INF/classes/static
+    context:
+      context-path: /
+      doc-base:
+      # cluster internal service name
+      hostname: ${EXTERNAL_HOSTNAME}
+      port: 80
+      # external name
+      extra-locations:
+      - hostname: aas-server
+        port: 8088
+        protocol: http
+        context-path: /
